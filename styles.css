@@ -1,0 +1,708 @@
+/*
+BASE
+*/
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #f0f2f5;
+    color: #1a1f36;
+    overflow: hidden;
+}
+
+/*
+APP
+*/
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+/*
+LEFT PANEL - редактор
+*/
+.editor-panel {
+    width: 420px;
+    min-width: 420px;
+    overflow-y: auto;
+    background: #f5f7fb;
+    border-right: 1px solid #e4e7ec;
+    position: relative;
+    padding-top: 70px;
+}
+
+/*
+FLOATING BUTTON - плавающая кнопка добавления объекта
+*/
+.floating-add-btn {
+    position: fixed;
+    left: 20px;
+    top: 20px;
+    z-index: 100;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transition: all 0.2s ease;
+    width: auto;
+    min-width: 180px;
+}
+
+.floating-add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.floating-add-btn:active {
+    transform: translateY(0);
+}
+
+.floating-add-btn span {
+    font-size: 18px;
+}
+
+/*
+REMOVE LAST OBJECT BUTTON
+*/
+.floating-remove-btn {
+    position: fixed;
+    left: 220px;
+    top: 20px;
+    z-index: 100;
+    background: white;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 40px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.floating-remove-btn:hover {
+    background: #fee2e2;
+    transform: translateY(-1px);
+}
+
+/*
+EDITOR CARDS - компактные карточки как в правой панели
+*/
+.editor-card {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    padding: 14px;
+    margin: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s ease;
+}
+
+.editor-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.editor-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editor-title span {
+    font-size: 18px;
+}
+
+.delete-object-btn {
+    background: #fee2e2;
+    border: none;
+    color: #dc2626;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.delete-object-btn:hover {
+    background: #fecaca;
+    transform: scale(1.02);
+}
+
+/*
+COMPACT SUB-EDITOR
+*/
+.sub-editor {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.sub-editor:hover {
+    border-color: #cbd5e1;
+    background: #fafcff;
+}
+
+.sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.sub-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.delete-sub-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 14px;
+    transition: color 0.2s ease;
+}
+
+.delete-sub-btn:hover {
+    color: #dc2626;
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 14px 0 10px 0;
+    color: #0f172a;
+    border-left: 3px solid #2563eb;
+    padding-left: 8px;
+}
+
+/*
+COMPACT FIELDS
+*/
+.field {
+    margin-bottom: 8px;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: white;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+select.input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 14px;
+    padding-right: 28px;
+}
+
+/*
+BUTTONS
+*/
+.btn {
+    border: none;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #cbd5e1;
+    margin-top: 8px;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.btn:hover {
+    background: #f1f5f9;
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+/*
+RIGHT PANEL
+*/
+.diagram-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #eef2f6 100%);
+}
+
+/*
+CHAIN WRAPPER
+*/
+.chain-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: min-content;
+}
+
+/*
+DEAL CARD
+*/
+.deal-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.deal-card:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.deal-header {
+    background: linear-gradient(135deg, #1a56db 0%, #1e40af 100%);
+    padding: 12px 20px;
+    color: white;
+}
+
+.deal-title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.deal-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.deal-content {
+    padding: 16px 20px;
+}
+
+/*
+DEAL GRID
+*/
+.deal-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: stretch;
+    min-width: min-content;
+}
+
+/*
+COLUMN STYLES
+*/
+.deal-column {
+    background: #f8fafc;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    flex: 1;
+    min-width: 180px;
+    max-width: 280px;
+}
+
+.column-header {
+    background: #f1f5f9;
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.column-header span {
+    font-size: 14px;
+}
+
+.column-content {
+    padding: 10px;
+}
+
+/*
+BUYER CARD
+*/
+.buyer-item {
+    background: white;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.buyer-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.buyer-detail {
+    font-size: 11px;
+    color: #475569;
+    padding: 3px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.buyer-detail .label {
+    color: #64748b;
+}
+
+.buyer-detail .value {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/*
+OBJECT CARD
+*/
+.object-address {
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+
+.object-type {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.object-details {
+    font-size: 10px;
+    color: #475569;
+    margin: 6px 0;
+    padding: 6px 0;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.object-price {
+    font-size: 15px;
+    font-weight: 700;
+    color: #059669;
+    margin-top: 6px;
+}
+
+/*
+BANK ACCOUNTS
+*/
+.bank-account {
+    background: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bank-account-title {
+    font-size: 10px;
+    color: #64748b;
+    max-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bank-account-amount {
+    font-weight: 700;
+    font-size: 11px;
+    color: #0f172a;
+    white-space: nowrap;
+}
+
+.bank-account.calculated {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.bank-account.calculated .bank-account-amount {
+    color: #059669;
+}
+
+/*
+SELLER CARD
+*/
+.seller-item {
+    background: white;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.seller-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.seller-share {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.seller-amount {
+    font-size: 14px;
+    font-weight: 700;
+    color: #059669;
+    margin: 6px 0;
+}
+
+.seller-agent {
+    font-size: 10px;
+    color: #dc2626;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.seller-transit {
+    font-size: 10px;
+    color: #2563eb;
+    margin-top: 4px;
+}
+
+/*
+COLUMN ARROW
+*/
+.column-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #94a3b8;
+    padding: 0 2px;
+}
+
+/*
+TRANSITION ARROW
+*/
+.transition-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 0;
+    color: #94a3b8;
+    font-size: 20px;
+    position: relative;
+}
+
+.transition-label-mini {
+    background: #e0e7ff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #3730a3;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 1;
+}
+
+/*
+SCROLL
+*/
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/*
+PRINT STYLES
+*/
+@media print {
+    .editor-panel,
+    .floating-add-btn,
+    .floating-remove-btn,
+    button {
+        display: none !important;
+    }
+
+    .diagram-panel {
+        display: block !important;
+        padding: 0 !important;
+    }
+
+    .deal-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+
+    .deal-header {
+        background: #e0e7ff !important;
+        color: black !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/*
+MOBILE
+*/
+@media (max-width: 1100px) {
+    .deal-grid {
+        flex-wrap: wrap;
+    }
+    
+    .deal-column {
+        min-width: 200px;
+        flex: 1 1 auto;
+    }
+    
+    .column-arrow {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .app {
+        flex-direction: column;
+    }
+
+    .editor-panel {
+        width: 100%;
+        min-width: auto;
+        height: 45vh;
+        padding-top: 60px;
+    }
+
+    .diagram-panel {
+        height: 55vh;
+    }
+    
+    .deal-grid {
+        flex-direction: column;
+    }
+    
+    .deal-column {
+        max-width: 100%;
+    }
+    
+    .floating-add-btn,
+    .floating-remove-btn {
+        top: auto;
+        bottom: 20px;
+        left: 20px;
+    }
+    
+    .floating-remove-btn {
+        left: 220px;
+    }
+}
