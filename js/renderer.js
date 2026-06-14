@@ -3,11 +3,10 @@ RENDERER V4 - СИНХРОНИЗИРОВАН
 */
 const DealRenderer = (() => {
     let root = null;
-
     function init(selector) {
         const element = document.querySelector(selector);
         if (!element) {
-            console.error("DealRenderer: root element not found", selector);
+            console.error("DealRenderer: root element not found ", selector);
             return;
         }
         root = element;
@@ -99,21 +98,21 @@ const DealRenderer = (() => {
                 let html = `<div class="buyer-name"><span>👤</span> ${escapeHtml(buyer.name || "Без имени")}</div>`;
                 
                 if (buyer.ownFunds > 0) {
-                    html += `<div class="buyer-detail"><span class="label">💰 Собственные:</span><span class="value">${moneyExact(buyer.ownFunds)}</span></div>`;
+                    html += `<div class="buyer-detail"><span class="label">💰 Собственные:</span> <span class="value">${moneyExact(buyer.ownFunds)}</span></div>`;
                 }
                 
                 if (buyer.additionalOwnFunds > 0) {
-                    html += `<div class="buyer-detail"><span class="label">💵 Доплата своими:</span><span class="value">${moneyExact(buyer.additionalOwnFunds)}</span></div>`;
+                    html += `<div class="buyer-detail"><span class="label">💵 Доплата своими:</span> <span class="value">${moneyExact(buyer.additionalOwnFunds)}</span></div>`;
                 }
                 
                 if (buyer.mortgageFunds > 0) {
-                    html += `<div class="buyer-detail"><span class="label">🏦 Ипотека:</span><span class="value">${moneyExact(buyer.mortgageFunds)}</span></div>`;
+                    html += `<div class="buyer-detail"><span class="label">🏦 Ипотека:</span> <span class="value">${moneyExact(buyer.mortgageFunds)}</span></div>`;
                 }
                 
                 if (buyer.agent && buyer.agent.name) {
-                    html += `<div class="buyer-detail"><span class="label">🤝 Агент:</span><span class="value">${escapeHtml(buyer.agent.name)}</span></div>`;
+                    html += `<div class="buyer-detail"><span class="label">🤝 Агент:</span> <span class="value">${escapeHtml(buyer.agent.name)}</span></div>`;
                     if (buyer.agent.commission > 0) {
-                        html += `<div class="buyer-detail"><span class="label">💸 Комиссия:</span><span class="value">${moneyExact(buyer.agent.commission)}</span></div>`;
+                        html += `<div class="buyer-detail"><span class="label">💸 Комиссия:</span> <span class="value">${moneyExact(buyer.agent.commission)}</span></div>`;
                     }
                 }
                 
@@ -144,8 +143,8 @@ const DealRenderer = (() => {
             <div class="object-address">${escapeHtml(object.address || "Без адреса")}</div>
             <div class="object-type">${escapeHtml(object.type || "Квартира")}</div>
             <div class="object-details">
-                ${object.rooms ? `${object.rooms} ком. • ` : ''}
-                ${object.area ? `${object.area} м²` : ''}
+               ${object.rooms ? `${object.rooms} ком. • ` : ''}
+               ${object.area ? `${object.area} м²` : ''}
             </div>
             <div class="object-price">${moneyExact(object.price)}</div>
         `;
@@ -186,7 +185,6 @@ const DealRenderer = (() => {
                 content.appendChild(accountDiv);
             });
 
-            // Рассчитываем итог: цена + комиссия покупателя
             const buyerCommission = (object.buyers || []).reduce((sum, b) => sum + (b.agent?.commission || 0), 0);
             const totalDeal = object.price + buyerCommission;
             
@@ -246,8 +244,8 @@ const DealRenderer = (() => {
                     
                     html += `
                         <div class="seller-agent">
-                            🤝 ${escapeHtml(seller.agent.name)}<br>
-                            💸 ${moneyExact(seller.agent.commission)}<br>
+                           🤝 ${escapeHtml(seller.agent.name)}<br>
+                           💸 ${moneyExact(seller.agent.commission)}<br>
                             <span style="font-size:9px;">📌 ${paymentText}</span>
                         </div>
                     `;
@@ -299,7 +297,7 @@ const DealRenderer = (() => {
         if (transitionAmount > 0) {
             container.innerHTML = `
                 <div class="transition-label-mini">
-                    ⬇ ТРАНЗИТ ${moneyExact(transitionAmount)} ⬇
+                   ⬇ ТРАНЗИТ ${moneyExact(transitionAmount)} ⬇
                 </div>
             `;
         } else {

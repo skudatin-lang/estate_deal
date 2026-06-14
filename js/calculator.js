@@ -1,11 +1,7 @@
 /*
-====================================================
 CALCULATOR V4 - ИСПРАВЛЕНА ЛОГИКА СОБСТВЕННЫХ СРЕДСТВ
-====================================================
 */
-
 const DealCalculator = (() => {
-
     function rebuild(deal) {
         if (!deal || !deal.objects) {
             console.error("DealCalculator: invalid deal object");
@@ -18,7 +14,7 @@ const DealCalculator = (() => {
             calculateObjects(deal);
             calculateSummary(deal);
         } catch (error) {
-            console.error("Ошибка в калькуляторе:", error);
+            console.error("Ошибка в калькуляторе: ", error);
         }
     }
 
@@ -78,7 +74,7 @@ const DealCalculator = (() => {
             });
         }
 
-        // ========== 1. АВАНСЫ ==========
+        // 1. АВАНСЫ
         if (object.advances && object.advances.length > 0) {
             object.advances.forEach(advance => {
                 const amount = safeNumber(advance.amount, 0);
@@ -92,7 +88,7 @@ const DealCalculator = (() => {
             });
         }
         
-        // ========== 2. КОМИССИИ ПРОДАВЦОВ (только если оплата НЕ "seller") ==========
+        // 2. КОМИССИИ ПРОДАВЦОВ (только если оплата НЕ "seller")
         if (object.sellers && Array.isArray(object.sellers)) {
             object.sellers.forEach(seller => {
                 const commission = safeNumber(seller.agent?.commission, 0);
@@ -113,7 +109,7 @@ const DealCalculator = (() => {
             });
         }
         
-        // ========== 3. ТРАНЗИТ (деньги от предыдущей сделки) ==========
+        // 3. ТРАНЗИТ
         if (transit > 0) {
             object.accounts.push({
                 title: "Транзитные средства",
@@ -122,15 +118,9 @@ const DealCalculator = (() => {
             });
         }
         
-        // ========== 4. СОБСТВЕННЫЕ СРЕДСТВА ==========
-        // Собственные средства показываем ТОЛЬКО если:
-        // 1. Есть собственные средства у покупателя
-        // 2. И если нет транзита (т.к. транзит уже покрывает эту сумму)
-        // Или если собственные средства больше авансов
+        // 4. СОБСТВЕННЫЕ СРЕДСТВА
         let ownFundsInBank = 0;
         if (ownFundsFromBuyer > 0) {
-            // Если есть транзит, то собственные средства НЕ показываем (они уже в транзите)
-            // Если транзита нет, то показываем собственные минус авансы
             if (transit === 0) {
                 ownFundsInBank = Math.max(0, ownFundsFromBuyer - totalAdvances);
             }
@@ -144,7 +134,7 @@ const DealCalculator = (() => {
             });
         }
         
-        // ========== 5. ДОПЛАТА СВОИМИ СРЕДСТВАМИ ==========
+        // 5. ДОПЛАТА СВОИМИ СРЕДСТВАМИ
         if (additionalOwnFunds > 0) {
             object.accounts.push({
                 title: "Доплата своими средствами",
@@ -153,7 +143,7 @@ const DealCalculator = (() => {
             });
         }
         
-        // ========== 6. КОМИССИЯ АГЕНТА ПОКУПАТЕЛЯ ==========
+        // 6. КОМИССИЯ АГЕНТА ПОКУПАТЕЛЯ
         if (buyerAgentCommission > 0) {
             object.accounts.push({
                 title: "Комиссия агента покупателя",
@@ -162,10 +152,8 @@ const DealCalculator = (() => {
             });
         }
         
-        // ========== 7. ИПОТЕКА ==========
-        // Уже есть: авансы + транзит + собственные в банке + доплата своими
+        // 7. ИПОТЕКА
         const alreadyHave = totalAdvances + transit + ownFundsInBank + additionalOwnFunds;
-        // Нужно всего: цена + комиссия покупателя
         const needTotal = price + buyerAgentCommission;
         
         let neededMortgage = 0;
@@ -180,27 +168,12 @@ const DealCalculator = (() => {
                 calculated: true
             });
         }
-        
-        // Для отладки
-        console.log("===== РАСЧЕТ =====");
-        console.log("Цена:", price);
-        console.log("Авансы:", totalAdvances);
-        console.log("Транзит:", transit);
-        console.log("Собственные покупателя:", ownFundsFromBuyer);
-        console.log("Собственные в банке:", ownFundsInBank);
-        console.log("Доплата своими:", additionalOwnFunds);
-        console.log("Комиссия покупателя:", buyerAgentCommission);
-        console.log("Уже есть:", alreadyHave);
-        console.log("Нужно всего:", needTotal);
-        console.log("Ипотека:", neededMortgage);
-        console.log("==================");
     }
 
     function getAdvances(object) {
         if (!object || !object.advances || !Array.isArray(object.advances)) {
             return 0;
         }
-        
         return object.advances.reduce((sum, item) => {
             return sum + safeNumber(item?.amount, 0);
         }, 0);
@@ -218,7 +191,6 @@ const DealCalculator = (() => {
 
         deal.objects.forEach(object => {
             if (!object) return;
-            
             budget += safeNumber(object.price, 0);
 
             if (object.buyers && Array.isArray(object.buyers)) {
@@ -229,17 +201,12 @@ const DealCalculator = (() => {
                     }
                 });
             }
-
             realMoney += FlowEngine.incomingAmount(object);
         });
 
         realMoney += mortgage;
 
-        deal.summary = {
-            budget,
-            mortgage,
-            realMoney
-        };
+        deal.summary = { budget, mortgage, realMoney };
     }
 
     function safeNumber(value, defaultValue = 0) {
@@ -247,8 +214,5 @@ const DealCalculator = (() => {
         return isNaN(num) ? defaultValue : Math.max(0, num);
     }
 
-    return {
-        rebuild
-    };
-
+    return { rebuild };
 })();

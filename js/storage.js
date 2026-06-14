@@ -1,220 +1,215 @@
 /*
-====================================================
 STORAGE.JS
 Сохранение / загрузка
+*/
+const DealStorage = (() => {
+const STORAGE_KEY =
+    "deal_constructor_v1";
+
+/*
+====================================================
+СОХРАНИТЬ
 ====================================================
 */
 
-const DealStorage = (() => {
+function save(deal) {
 
-    const STORAGE_KEY =
-        "deal_constructor_v1";
+    try {
 
-    /*
-    ====================================================
-    СОХРАНИТЬ
-    ====================================================
-    */
-
-    function save(deal) {
-
-        try {
-
-            localStorage.setItem(
-                STORAGE_KEY,
-                JSON.stringify(deal)
-            );
-
-            return true;
-
-        } catch (error) {
-
-            console.error(
-                "Ошибка сохранения",
-                error
-            );
-
-            return false;
-        }
-    }
-
-    /*
-    ====================================================
-    ЗАГРУЗИТЬ
-    ====================================================
-    */
-
-    function load() {
-
-        try {
-
-            const raw =
-                localStorage.getItem(
-                    STORAGE_KEY
-                );
-
-            if (!raw) {
-
-                return null;
-            }
-
-            return JSON.parse(raw);
-
-        } catch (error) {
-
-            console.error(
-                "Ошибка загрузки",
-                error
-            );
-
-            return null;
-        }
-    }
-
-    /*
-    ====================================================
-    НОВАЯ СДЕЛКА
-    ====================================================
-    */
-
-    function createNew() {
-
-        const deal =
-            DealModel.createDeal();
-
-        save(deal);
-
-        return deal;
-    }
-
-    /*
-    ====================================================
-    ЭКСПОРТ JSON
-    ====================================================
-    */
-
-    function exportJson(deal) {
-
-        const blob =
-            new Blob(
-                [
-                    JSON.stringify(
-                        deal,
-                        null,
-                        2
-                    )
-                ],
-                {
-                    type:
-                        "application/json"
-                }
-            );
-
-        const url =
-            URL.createObjectURL(
-                blob
-            );
-
-        const a =
-            document.createElement(
-                "a"
-            );
-
-        a.href = url;
-
-        a.download =
-            "deal.json";
-
-        a.click();
-
-        URL.revokeObjectURL(
-            url
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(deal)
         );
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "Ошибка сохранения",
+            error
+        );
+
+        return false;
     }
+}
 
-    /*
-    ====================================================
-    ИМПОРТ JSON
-    ====================================================
-    */
+/*
+====================================================
+ЗАГРУЗИТЬ
+====================================================
+*/
 
-    async function importJson(
-        file
-    ) {
+function load() {
 
-        return new Promise(
-            (
-                resolve,
-                reject
-            ) => {
+    try {
 
-                const reader =
-                    new FileReader();
+        const raw =
+            localStorage.getItem(
+                STORAGE_KEY
+            );
 
-                reader.onload =
-                    e => {
+        if (!raw) {
 
-                    try {
+            return null; 
+        }
 
-                        const data =
-                            JSON.parse(
-                                e.target
-                                .result
-                            );
+        return JSON.parse(raw);
 
-                        resolve(
-                            data
+    } catch (error) {
+
+        console.error(
+            "Ошибка загрузки",
+            error
+        );
+
+        return null;
+    }
+}
+
+/*
+====================================================
+НОВАЯ СДЕЛКА
+====================================================
+*/
+
+function createNew() {
+
+    const deal =
+        DealModel.createDeal();
+
+    save(deal);
+
+    return deal;
+}
+
+/*
+====================================================
+ЭКСПОРТ JSON
+====================================================
+*/
+
+function exportJson(deal) {
+
+    const blob =
+        new Blob(
+            [
+                JSON.stringify(
+                    deal,
+                    null,
+                    2
+                )
+            ],
+            {
+                type:
+                    "application/json"
+            }
+        );
+
+    const url =
+        URL.createObjectURL(
+            blob
+        );
+
+    const a =
+        document.createElement(
+            "a"
+        );
+
+    a.href = url;
+
+    a.download =
+        "deal.json";
+
+    a.click();
+
+    URL.revokeObjectURL(
+        url
+    );
+}
+
+/*
+====================================================
+ИМПОРТ JSON
+====================================================
+*/
+
+async function importJson(
+    file
+) {
+
+    return new Promise(
+        (
+            resolve,
+            reject
+        ) => {
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                e => {
+
+                try {
+
+                    const data =
+                        JSON.parse(
+                            e.target
+                            .result
                         );
 
-                    } catch (
+                    resolve(
+                        data
+                    );
+
+                } catch (
+                    error
+                ) {
+
+                    reject(
                         error
-                    ) {
+                    );
+                }
 
-                        reject(
-                            error
-                        );
-                    }
+            };
 
-                };
+            reader.onerror =
+                reject;
 
-                reader.onerror =
-                    reject;
+            reader.readAsText(
+                file
+            );
 
-                reader.readAsText(
-                    file
-                );
+        }
+    );
+}
 
-            }
-        );
-    }
+/*
+====================================================
+ОЧИСТКА
+====================================================
+*/
 
-    /*
-    ====================================================
-    ОЧИСТКА
-    ====================================================
-    */
+function clear() {
 
-    function clear() {
+    localStorage.removeItem(
+        STORAGE_KEY
+    );
+}
 
-        localStorage.removeItem(
-            STORAGE_KEY
-        );
-    }
+return {
 
-    return {
+    save,
 
-        save,
+    load,
 
-        load,
+    clear,
 
-        clear,
+    createNew,
 
-        createNew,
+    exportJson,
 
-        exportJson,
+    importJson
 
-        importJson
-
-    };
-
+};
 })();

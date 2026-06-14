@@ -1,11 +1,7 @@
 /*
-====================================================
-FLOW ENGINE V4
-====================================================
+FLOW ENGINE V5 - ИСПРАВЛЕНО ЗАДВОЕНИЕ СУММ (СТРОГОЕ ПРИСВАИВАНИЕ)
 */
-
 const FlowEngine = (() => {
-
     function build(deal) {
         if (!deal || !deal.objects) return;
 
@@ -88,31 +84,37 @@ const FlowEngine = (() => {
         deal.objects.forEach(targetObject => {
             if (!targetObject.incomingTransitions || targetObject.incomingTransitions.length === 0) return;
             
-            targetObject.incomingTransitions.forEach(transition => {
-                const sellerName = transition.sellerName;
-                const amount = transition.amount;
-                
-                let existingBuyer = null;
-                if (targetObject.buyers) {
-                    existingBuyer = targetObject.buyers.find(b => b.name === sellerName);
-                } else {
+            // Группируем переходы по имени продавца, чтобы корректно обработать несколько переходов от одного лица
+            const transitionsBySeller = {};
+            targetObject.incomingTransitions.forEach(t => {
+                if (!transitionsBySeller[t.sellerName]) {
+                    transitionsBySeller[t.sellerName] = 0;
+                }
+                transitionsBySeller[t.sellerName] += Number(t.amount) || 0;
+            });
+
+            for (const [sellerName, totalAmount] of Object.entries(transitionsBySeller)) {
+                if (!targetObject.buyers) {
                     targetObject.buyers = [];
                 }
                 
+                let existingBuyer = targetObject.buyers.find(b => b.name === sellerName);
+                
                 if (existingBuyer) {
-                    existingBuyer.ownFunds = amount;
+                    // СТРОГОЕ ПРИСВАИВАНИЕ, А НЕ СЛОЖЕНИЕ (исключает задвоение)
+                    existingBuyer.ownFunds = totalAmount;
                     existingBuyer.name = sellerName;
                 } else {
                     const newBuyer = DealModel.createBuyer();
                     newBuyer.name = sellerName;
-                    newBuyer.ownFunds = amount;
+                    newBuyer.ownFunds = totalAmount;
                     newBuyer.additionalOwnFunds = 0;
                     newBuyer.mortgageFunds = 0;
                     if (!newBuyer.agent) newBuyer.agent = { name: "", commission: 0 };
                     
                     targetObject.buyers.push(newBuyer);
                 }
-            });
+            }
         });
     }
 
@@ -136,5 +138,4 @@ const FlowEngine = (() => {
         ensureBuyerLink,
         syncBuyersFromTransitions
     };
-
 })();

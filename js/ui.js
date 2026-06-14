@@ -1,5 +1,5 @@
 /*
-UI V4 - С ПОЛЕМ ДОПЛАТА СВОИМИ
+UI V5 - ИСПРАВЛЕНА КОМПОНОВКА И ЛОГИКА ПЕРЕХОДОВ (БЕЗ ЗАДВОЕНИЯ)
 */
 const DealUI = (() => {
     let root = null;
@@ -9,7 +9,7 @@ const DealUI = (() => {
     function init(selector, dealRef) {
         const element = document.querySelector(selector);
         if (!element) {
-            console.error("DealUI: root element not found", selector);
+            console.error("DealUI: root element not found ", selector);
             return;
         }
         root = element;
@@ -19,7 +19,6 @@ const DealUI = (() => {
 
     function refresh() {
         if (!deal) return;
-        
         if (updateTimeout) clearTimeout(updateTimeout);
         updateTimeout = setTimeout(() => {
             try {
@@ -29,7 +28,7 @@ const DealUI = (() => {
                     window.saveDeal();
                 }
             } catch (error) {
-                console.error("Ошибка при обновлении UI:", error);
+                console.error("Ошибка при обновлении UI: ", error);
             }
         }, 100);
     }
@@ -60,7 +59,7 @@ const DealUI = (() => {
 
         const addBtn = document.createElement("button");
         addBtn.className = "floating-add-btn";
-        addBtn.innerHTML = `<span>➕</span> + Добавить объект`;
+        addBtn.innerHTML = `<span>➕</span> Добавить объект`;
         addBtn.onclick = () => {
             if (deal && deal.objects) {
                 deal.objects.push(DealModel.createObject());
@@ -77,6 +76,7 @@ const DealUI = (() => {
             if (deal && deal.objects && deal.objects.length > 1) {
                 if (confirm("Удалить последний объект?")) {
                     deal.objects.pop();
+                    cleanAllTransitionsToDeleted();
                     render();
                     refresh();
                 }
@@ -85,6 +85,22 @@ const DealUI = (() => {
             }
         };
         document.body.appendChild(removeBtn);
+    }
+
+    function cleanAllTransitionsToDeleted() {
+        if (!deal || !deal.objects) return;
+        const existingIds = deal.objects.map(obj => String(obj.id));
+        deal.objects.forEach(obj => {
+            if (obj && obj.sellers) {
+                obj.sellers.forEach(seller => {
+                    if (seller && seller.transitions) {
+                        seller.transitions = seller.transitions.filter(t => 
+                            t && t.toObjectId && existingIds.includes(String(t.toObjectId))
+                        );
+                    }
+                });
+            }
+        });
     }
 
     function createEmptyMessage() {
@@ -96,21 +112,21 @@ const DealUI = (() => {
         div.innerHTML = `
             <div style="font-size: 48px; margin-bottom: 16px;">🏠</div>
             <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Нет объектов</div>
-            <div style="font-size: 13px; color: #64748b;">Нажмите кнопку "+ Добавить объект" чтобы начать</div>
+            <div style="font-size: 13px; color: #64748b;">Нажмите кнопку "Добавить объект" чтобы начать</div>
         `;
         return div;
     }
 
     function objectEditor(object, index) {
         const card = document.createElement("div");
-        card.className = "editor-card";
+        card.className = "deal-block-wrapper";
 
+        // 1. ЗАГОЛОВОК
         const header = document.createElement("div");
-        header.className = "editor-header";
-        
+        header.className = "deal-block-header";
         const title = document.createElement("div");
         title.className = "editor-title";
-        title.innerHTML = `<span>🏢</span> Объект ${index + 1}: ${object.address || "новый"}`;
+        title.innerHTML = `<span>🏢</span> Сделка №${index + 1}: ${object.address || "новый объект"}`;
         header.appendChild(title);
         
         const deleteBtn = document.createElement("button");
@@ -122,7 +138,7 @@ const DealUI = (() => {
                     const idx = deal.objects.findIndex(o => o.id === object.id);
                     if (idx !== -1) {
                         deal.objects.splice(idx, 1);
-                        cleanTransitionsToDeletedObject(object.id);
+                        cleanAllTransitionsToDeleted();
                         render();
                         refresh();
                     }
@@ -132,128 +148,143 @@ const DealUI = (() => {
             }
         };
         header.appendChild(deleteBtn);
-        
         card.appendChild(header);
 
-        card.appendChild(compactTextField("Адрес", object.address, value => {
-            object.address = value;
-            refresh();
-        }));
+        // 2. БЛОК ОБЪЕКТА (2 КОЛОНКИ)
+        const objectSection = document.createElement("div");
+        objectSection.className = "deal-section object-section";
+        
+        const objTitle = document.createElement("div");
+        objTitle.className = "section-label";
+        objTitle.textContent = "📍 Характеристики объекта";
+        objectSection.appendChild(objTitle);
 
-        card.appendChild(compactTextField("Тип объекта", object.type, value => {
-            object.type = value;
-            refresh();
-        }));
+        const objGrid = document.createElement("div");
+        objGrid.className = "two-col-grid";
 
+        // Левая колонка: Адрес, Тип, Комнаты, Площадь, ЦЕНА
+        const col1 = document.createElement("div");
+        col1.className = "grid-col";
+        col1.appendChild(compactTextField("Адрес", object.address, v => { object.address = v; refresh(); }));
+        col1.appendChild(compactTextField("Тип объекта", object.type, v => { object.type = v; refresh(); }));
+        
         const roomsAreaRow = document.createElement("div");
-        roomsAreaRow.style.display = "flex";
-        roomsAreaRow.style.gap = "10px";
+        roomsAreaRow.className = "inline-fields";
+        roomsAreaRow.appendChild(compactTextField("Комнат", object.rooms, v => { object.rooms = v; refresh(); }));
+        roomsAreaRow.appendChild(compactTextField("Площадь (м²)", object.area, v => { object.area = v; refresh(); }));
+        col1.appendChild(roomsAreaRow);
         
-        const roomsField = compactTextField("Комнат", object.rooms, value => {
-            object.rooms = value;
-            refresh();
-        });
-        roomsField.style.flex = "1";
-        
-        const areaField = compactTextField("Площадь (м²)", object.area, value => {
-            object.area = value;
-            refresh();
-        });
-        areaField.style.flex = "1";
-        
-        roomsAreaRow.appendChild(roomsField);
-        roomsAreaRow.appendChild(areaField);
-        card.appendChild(roomsAreaRow);
+        // ЦЕНА ПЕРЕНЕСЕНА СЮДА, ПОД ХАРАКТЕРИСТИКИ
+        col1.appendChild(compactNumberField("Цена (₽)", object.price, v => { object.price = validateNumber(v, 0); refresh(); }));
 
-        card.appendChild(compactNumberField("Цена (₽)", object.price, value => {
-            object.price = validateNumber(value, 0);
-            refresh();
-        }));
+        // Правая колонка: ТОЛЬКО АВАНСЫ
+        const col2 = document.createElement("div");
+        col2.className = "grid-col";
+        const advancesContainer = document.createElement("div");
+        advancesContainer.className = "advances-vertical-stack";
+        const advLabel = document.createElement("label");
+        advLabel.textContent = "Авансы";
+        advancesContainer.appendChild(advLabel);
 
-        card.appendChild(sectionTitle("💰 Авансы"));
+        const advancesList = document.createElement("div");
+        advancesList.className = "advances-list";
+        
         if (object.advances && object.advances.length > 0) {
             object.advances.forEach((advance, idx) => {
-                card.appendChild(compactAdvanceEditor(advance, idx, object));
+                advancesList.appendChild(compactAdvanceEditorMini(advance, idx, object));
             });
         }
 
-        const addAdvance = document.createElement("button");
-        addAdvance.className = "btn btn-sm";
-        addAdvance.textContent = "+ Добавить аванс";
-        addAdvance.onclick = () => {
+        const addAdvBtn = document.createElement("button");
+        addAdvBtn.className = "btn btn-xs btn-dashed";
+        addAdvBtn.textContent = "+ Аванс";
+        addAdvBtn.onclick = () => {
             if (!object.advances) object.advances = [];
             object.advances.push(DealModel.createAdvance());
             render();
             refresh();
         };
-        card.appendChild(addAdvance);
+        advancesList.appendChild(addAdvBtn);
+        advancesContainer.appendChild(advancesList);
+        col2.appendChild(advancesContainer);
 
-        card.appendChild(sectionTitle("👤 Покупатели"));
-        if (object.buyers && object.buyers.length > 0) {
-            object.buyers.forEach((buyer, idx) => {
-                card.appendChild(compactBuyerEditor(buyer, idx, object));
-            });
-        }
+        objGrid.appendChild(col1);
+        objGrid.appendChild(col2);
+        objectSection.appendChild(objGrid);
+        card.appendChild(objectSection);
 
-        const addBuyer = document.createElement("button");
-        addBuyer.className = "btn btn-sm";
-        addBuyer.textContent = "+ Добавить покупателя";
-        addBuyer.onclick = () => {
-            if (!object.buyers) object.buyers = [];
-            object.buyers.push(DealModel.createBuyer());
-            render();
-            refresh();
-        };
-        card.appendChild(addBuyer);
+        // 3. БЛОК ПРОДАВЦОВ (ГОРИЗОНТАЛЬНЫЙ СКРОЛЛ)
+        const sellerSection = document.createElement("div");
+        sellerSection.className = "deal-section seller-section";
+        
+        const sellTitle = document.createElement("div");
+        sellTitle.className = "section-label";
+        sellTitle.textContent = "💼 Продавцы";
+        sellerSection.appendChild(sellTitle);
 
-        card.appendChild(sectionTitle("💰 Продавцы"));
+        const sellersScrollRow = document.createElement("div");
+        sellersScrollRow.className = "horizontal-scroll-row";
+
         if (object.sellers && object.sellers.length > 0) {
             object.sellers.forEach((seller, idx) => {
-                card.appendChild(compactSellerEditor(seller, object, idx));
+                sellersScrollRow.appendChild(compactSellerEditor(seller, object, idx));
             });
         }
 
-        const addSeller = document.createElement("button");
-        addSeller.className = "btn btn-sm";
-        addSeller.textContent = "+ Добавить продавца";
-        addSeller.onclick = () => {
+        const addSellBtn = document.createElement("button");
+        addSellBtn.className = "btn btn-xs btn-dashed scroll-add-btn";
+        addSellBtn.textContent = "+ Продавец";
+        addSellBtn.onclick = () => {
             if (!object.sellers) object.sellers = [];
             object.sellers.push(DealModel.createSeller());
             render();
             refresh();
         };
-        card.appendChild(addSeller);
+        sellersScrollRow.appendChild(addSellBtn);
+        sellerSection.appendChild(sellersScrollRow);
+        card.appendChild(sellerSection);
+
+        // 4. БЛОК ПОКУПАТЕЛЕЙ (ПОД ПРОДАВЦАМИ, СЕТКА)
+        const buyerSection = document.createElement("div");
+        buyerSection.className = "deal-section buyer-section";
+        
+        const buyTitle = document.createElement("div");
+        buyTitle.className = "section-label";
+        buyTitle.textContent = "👤 Покупатели";
+        buyerSection.appendChild(buyTitle);
+
+        const buyersGrid = document.createElement("div");
+        buyersGrid.className = "buyers-grid";
+
+        if (object.buyers && object.buyers.length > 0) {
+            object.buyers.forEach((buyer, idx) => {
+                buyersGrid.appendChild(compactBuyerEditor(buyer, idx, object));
+            });
+        }
+
+        const addBuyBtn = document.createElement("button");
+        addBuyBtn.className = "btn btn-xs btn-dashed";
+        addBuyBtn.textContent = "+ Покупатель";
+        addBuyBtn.onclick = () => {
+            if (!object.buyers) object.buyers = [];
+            object.buyers.push(DealModel.createBuyer());
+            render();
+            refresh();
+        };
+        buyersGrid.appendChild(addBuyBtn);
+        buyerSection.appendChild(buyersGrid);
+        card.appendChild(buyerSection);
 
         return card;
     }
 
-    function cleanTransitionsToDeletedObject(objectId) {
-        if (!deal || !deal.objects) return;
-        
-        deal.objects.forEach(obj => {
-            if (obj && obj.sellers) {
-                obj.sellers.forEach(seller => {
-                    if (seller && seller.transitions) {
-                        seller.transitions = seller.transitions.filter(t => 
-                            t && String(t.toObjectId) !== String(objectId)
-                        );
-                    }
-                });
-            }
-        });
-    }
-
-    function compactAdvanceEditor(advance, index, object) {
+    function compactAdvanceEditorMini(advance, index, object) {
         const wrap = document.createElement("div");
-        wrap.className = "sub-editor";
+        wrap.className = "mini-advance-card";
 
         const header = document.createElement("div");
-        header.className = "sub-header";
-        
-        const title = document.createElement("span");
-        title.className = "sub-title";
-        title.textContent = `Аванс ${index + 1}`;
-        header.appendChild(title);
+        header.className = "mini-advance-header";
+        header.innerHTML = `<span class="sub-title">Аванс ${index + 1}</span>`;
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "delete-sub-btn";
@@ -266,31 +297,21 @@ const DealUI = (() => {
             }
         };
         header.appendChild(deleteBtn);
-        
         wrap.appendChild(header);
-        wrap.appendChild(compactTextField("Название", advance.title, value => {
-            advance.title = value;
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Сумма (₽)", advance.amount, value => {
-            advance.amount = validateNumber(value, 0);
-            refresh();
-        }));
+
+        wrap.appendChild(compactTextField("Название", advance.title, v => { advance.title = v; refresh(); }));
+        wrap.appendChild(compactNumberField("Сумма", advance.amount, v => { advance.amount = validateNumber(v, 0); refresh(); }));
 
         return wrap;
     }
 
     function compactBuyerEditor(buyer, index, object) {
         const wrap = document.createElement("div");
-        wrap.className = "sub-editor";
+        wrap.className = "sub-editor buyer-sub-editor";
 
         const header = document.createElement("div");
         header.className = "sub-header";
-        
-        const title = document.createElement("span");
-        title.className = "sub-title";
-        title.textContent = `Покупатель ${index + 1}`;
-        header.appendChild(title);
+        header.innerHTML = `<span class="sub-title">Покупатель ${index + 1}</span>`;
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "delete-sub-btn";
@@ -303,52 +324,32 @@ const DealUI = (() => {
             }
         };
         header.appendChild(deleteBtn);
-        
         wrap.appendChild(header);
-        wrap.appendChild(compactTextField("ФИО", buyer.name, value => {
-            buyer.name = value;
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Собственные средства (₽)", buyer.ownFunds, value => {
-            buyer.ownFunds = validateNumber(value, 0);
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Доплата своими (₽)", buyer.additionalOwnFunds, value => {
-            buyer.additionalOwnFunds = validateNumber(value, 0);
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Ипотека (₽)", buyer.mortgageFunds, value => {
-            buyer.mortgageFunds = validateNumber(value, 0);
-            refresh();
-        }));
 
-        if (!buyer.agent) {
-            buyer.agent = { name: "", commission: 0 };
-        }
+        wrap.appendChild(compactTextField("ФИО", buyer.name, v => { buyer.name = v; refresh(); }));
+        
+        const fundsRow = document.createElement("div");
+        fundsRow.className = "inline-fields";
+        fundsRow.appendChild(compactNumberField("Свои (₽)", buyer.ownFunds, v => { buyer.ownFunds = validateNumber(v, 0); refresh(); }));
+        fundsRow.appendChild(compactNumberField("Доплата (₽)", buyer.additionalOwnFunds, v => { buyer.additionalOwnFunds = validateNumber(v, 0); refresh(); }));
+        wrap.appendChild(fundsRow);
 
-        wrap.appendChild(compactTextField("Агент покупателя", buyer.agent.name, value => {
-            buyer.agent.name = value;
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Комиссия агента (₽)", buyer.agent.commission, value => {
-            buyer.agent.commission = validateNumber(value, 0);
-            refresh();
-        }));
+        wrap.appendChild(compactNumberField("Ипотека (₽)", buyer.mortgageFunds, v => { buyer.mortgageFunds = validateNumber(v, 0); refresh(); }));
+
+        if (!buyer.agent) buyer.agent = { name: "", commission: 0 };
+        wrap.appendChild(compactTextField("Агент", buyer.agent.name, v => { buyer.agent.name = v; refresh(); }));
+        wrap.appendChild(compactNumberField("Комиссия (₽)", buyer.agent.commission, v => { buyer.agent.commission = validateNumber(v, 0); refresh(); }));
 
         return wrap;
     }
 
     function compactSellerEditor(seller, currentObject, index) {
         const wrap = document.createElement("div");
-        wrap.className = "sub-editor";
+        wrap.className = "sub-editor seller-sub-editor";
 
         const header = document.createElement("div");
         header.className = "sub-header";
-        
-        const title = document.createElement("span");
-        title.className = "sub-title";
-        title.textContent = `Продавец ${index + 1}`;
-        header.appendChild(title);
+        header.innerHTML = `<span class="sub-title">Продавец ${index + 1}</span>`;
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "delete-sub-btn";
@@ -361,29 +362,14 @@ const DealUI = (() => {
             }
         };
         header.appendChild(deleteBtn);
-        
         wrap.appendChild(header);
-        wrap.appendChild(compactTextField("ФИО", seller.name, value => {
-            seller.name = value;
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Доля (%)", seller.share, value => {
-            seller.share = validateNumber(value, 0, 100);
-            refresh();
-        }));
 
-        if (!seller.agent) {
-            seller.agent = { name: "", commission: 0, paymentMode: "seller" };
-        }
+        wrap.appendChild(compactTextField("ФИО", seller.name, v => { seller.name = v; refresh(); }));
+        wrap.appendChild(compactNumberField("Доля (%)", seller.share, v => { seller.share = validateNumber(v, 0, 100); refresh(); }));
 
-        wrap.appendChild(compactTextField("Агент продавца", seller.agent.name, value => {
-            seller.agent.name = value;
-            refresh();
-        }));
-        wrap.appendChild(compactNumberField("Комиссия агента (₽)", seller.agent.commission, value => {
-            seller.agent.commission = validateNumber(value, 0);
-            refresh();
-        }));
+        if (!seller.agent) seller.agent = { name: "", commission: 0, paymentMode: "seller" };
+        wrap.appendChild(compactTextField("Агент", seller.agent.name, v => { seller.agent.name = v; refresh(); }));
+        wrap.appendChild(compactNumberField("Комиссия (₽)", seller.agent.commission, v => { seller.agent.commission = validateNumber(v, 0); refresh(); }));
 
         const modeSelect = document.createElement("select");
         modeSelect.className = "input";
@@ -393,25 +379,18 @@ const DealUI = (() => {
             <option value="buyer">👤 От покупателя</option>
         `;
         modeSelect.value = seller.agent.paymentMode || "seller";
-        modeSelect.onchange = e => {
-            seller.agent.paymentMode = e.target.value;
-            refresh();
-        };
+        modeSelect.onchange = e => { seller.agent.paymentMode = e.target.value; refresh(); };
         
         const modeWrap = document.createElement("div");
         modeWrap.className = "field";
-        const modeLabel = document.createElement("label");
-        modeLabel.textContent = "Оплата комиссии";
-        modeWrap.appendChild(modeLabel);
+        modeWrap.appendChild(document.createTextNode("Оплата"));
         modeWrap.appendChild(modeSelect);
         wrap.appendChild(modeWrap);
 
-        const transitionsTitle = document.createElement("div");
-        transitionsTitle.className = "section-title";
-        transitionsTitle.textContent = "🔄 Покупки из средств продавца";
-        transitionsTitle.style.marginTop = "10px";
-        transitionsTitle.style.fontSize = "11px";
-        wrap.appendChild(transitionsTitle);
+        const transTitle = document.createElement("div");
+        transTitle.className = "section-label-mini";
+        transTitle.textContent = "🔄 Покупки";
+        wrap.appendChild(transTitle);
 
         if (seller.transitions && seller.transitions.length > 0) {
             seller.transitions.forEach((transition, idx) => {
@@ -419,33 +398,31 @@ const DealUI = (() => {
             });
         }
 
-        const addTransition = document.createElement("button");
-        addTransition.className = "btn btn-sm";
-        addTransition.textContent = "+ Добавить покупку объекта";
-        addTransition.onclick = () => {
+        const addTransBtn = document.createElement("button");
+        addTransBtn.className = "btn btn-xs btn-dashed";
+        addTransBtn.textContent = "+ Покупка";
+        addTransBtn.onclick = () => {
             if (!seller.transitions) seller.transitions = [];
-            seller.transitions.push(DealModel.createTransition());
+            const newTransition = DealModel.createTransition();
+            // АВТОМАТИЧЕСКИ СТАВИМ СУММУ, РАВНУЮ ЧИСТОМУ ДОХОДУ ПРОДАВЦА
+            newTransition.amount = seller.netAmount || 0;
+            seller.transitions.push(newTransition);
             render();
             refresh();
         };
-        wrap.appendChild(addTransition);
+        wrap.appendChild(addTransBtn);
 
         return wrap;
     }
 
     function compactTransitionEditor(seller, transition, index, currentObject) {
         const wrap = document.createElement("div");
-        wrap.className = "sub-editor";
-        wrap.style.marginTop = "8px";
-        wrap.style.marginBottom = "8px";
+        wrap.className = "sub-editor sub-editor-nested";
+        wrap.style.marginTop = "6px";
 
         const header = document.createElement("div");
         header.className = "sub-header";
-        
-        const title = document.createElement("span");
-        title.className = "sub-title";
-        title.textContent = `Переход ${index + 1}`;
-        header.appendChild(title);
+        header.innerHTML = `<span class="sub-title">Переход ${index + 1}</span>`;
         
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "delete-sub-btn";
@@ -459,7 +436,6 @@ const DealUI = (() => {
             }
         };
         header.appendChild(deleteBtn);
-        
         wrap.appendChild(header);
 
         const select = document.createElement("select");
@@ -471,10 +447,8 @@ const DealUI = (() => {
                 if (String(object.id) !== String(currentObject.id)) {
                     const option = document.createElement("option");
                     option.value = object.id;
-                    option.textContent = `#${object.id} ${object.address || "без адреса"}`;
-                    if (String(transition.toObjectId) === String(object.id)) {
-                        option.selected = true;
-                    }
+                    option.textContent = `#${object.id} ${object.address || "без адреса"} (${money(object.price)})`;
+                    if (String(transition.toObjectId) === String(object.id)) option.selected = true;
                     select.appendChild(option);
                 }
             });
@@ -483,8 +457,10 @@ const DealUI = (() => {
         select.onchange = e => {
             if (e.target.value) {
                 transition.toObjectId = Number(e.target.value);
-                transition.amount = transition.amount || 0;
-                
+                // Если сумма еще не задана, ставим netAmount
+                if (!transition.amount || transition.amount === 0) {
+                    transition.amount = seller.netAmount || 0;
+                }
                 const targetObject = deal.objects.find(x => x.id === transition.toObjectId);
                 if (targetObject) {
                     let buyer = targetObject.buyers.find(b => b.name === seller.name);
@@ -493,6 +469,7 @@ const DealUI = (() => {
                         buyer.name = seller.name;
                         targetObject.buyers.push(buyer);
                     }
+                    // СТРОГОЕ ПРИСВАИВАНИЕ, БЕЗ СЛОЖЕНИЯ (исключает задвоение)
                     buyer.ownFunds = transition.amount;
                 }
                 refresh();
@@ -504,9 +481,7 @@ const DealUI = (() => {
 
         const selectWrap = document.createElement("div");
         selectWrap.className = "field";
-        const selectLabel = document.createElement("label");
-        selectLabel.textContent = "Покупаемый объект";
-        selectWrap.appendChild(selectLabel);
+        selectWrap.appendChild(document.createTextNode("Объект"));
         selectWrap.appendChild(select);
         wrap.appendChild(selectWrap);
         
@@ -516,13 +491,13 @@ const DealUI = (() => {
         amountInput.value = transition.amount || 0;
         amountInput.min = 0;
         amountInput.step = "any";
-        amountInput.placeholder = "Сумма перехода";
         amountInput.oninput = e => {
             transition.amount = validateNumber(e.target.value, 0);
             const targetObject = deal.objects.find(x => x.id === transition.toObjectId);
             if (targetObject && transition.toObjectId) {
                 const buyer = targetObject.buyers.find(b => b.name === seller.name);
                 if (buyer) {
+                    // СТРОГОЕ ПРИСВАИВАНИЕ ПРИ РУЧНОМ ВВОДЕ (исключает задвоение)
                     buyer.ownFunds = transition.amount;
                 }
             }
@@ -531,9 +506,7 @@ const DealUI = (() => {
         
         const amountWrap = document.createElement("div");
         amountWrap.className = "field";
-        const amountLabel = document.createElement("label");
-        amountLabel.textContent = "Сумма перехода (₽)";
-        amountWrap.appendChild(amountLabel);
+        amountWrap.appendChild(document.createTextNode("Сумма (₽)"));
         amountWrap.appendChild(amountInput);
         wrap.appendChild(amountWrap);
 
@@ -542,23 +515,12 @@ const DealUI = (() => {
 
     function resyncAllBuyers() {
         if (!deal || !deal.objects) return;
-        
         deal.objects.forEach(object => {
             if (object.buyers) {
-                object.buyers = object.buyers.filter(buyer => {
-                    return buyer.agent && buyer.agent.commission > 0;
-                });
+                object.buyers = object.buyers.filter(buyer => !buyer.name || (buyer.agent && buyer.agent.commission > 0));
             }
         });
-        
         FlowEngine.syncBuyersFromTransitions(deal);
-    }
-
-    function sectionTitle(text) {
-        const div = document.createElement("div");
-        div.className = "section-title";
-        div.textContent = text;
-        return div;
     }
 
     function compactTextField(label, value, callback) {
@@ -600,8 +562,13 @@ const DealUI = (() => {
         return num;
     }
 
-    return {
-        init,
-        render
-    };
+    function money(value) {
+        const num = Number(value);
+        if (isNaN(num)) return "0 ₽";
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + " млн ₽";
+        if (num >= 1000) return (num / 1000).toFixed(0) + " тыс ₽";
+        return num.toLocaleString("ru-RU") + " ₽";
+    }
+
+    return { init, render };
 })();
