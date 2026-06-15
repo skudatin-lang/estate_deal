@@ -1,5 +1,5 @@
 /*
-RENDERER V4 - СИНХРОНИЗИРОВАН
+RENDERER V5 - ОТОБРАЖЕНИЕ ДОПЛАТЫ ПРОДАВЦУ
 */
 const DealRenderer = (() => {
     let root = null;
@@ -231,8 +231,15 @@ const DealRenderer = (() => {
                     <div class="seller-amount">💰 Получает: ${moneyExact(seller.netAmount)}</div>
                 `;
                 
+                // 1. Строка "В покупку" (Транзит)
                 if (seller.calculatedTransit && seller.calculatedTransit > 0) {
                     html += `<div class="seller-transit">➜ В покупку: ${moneyExact(seller.calculatedTransit)}</div>`;
+                }
+
+                // 2. НОВАЯ СТРОКА: Доплата продавцу (Остаток)
+                // Появляется, если продавец получил больше, чем отправил в покупку
+                if (seller.calculatedRemainder > 0) {
+                    html += `<div class="seller-remainder" style="color:#059669; font-weight:600; font-size:11px; margin-top:4px;">💵 Доплата продавцу: ${moneyExact(seller.calculatedRemainder)}</div>`;
                 }
                 
                 if (seller.agent && seller.agent.name && seller.agent.commission > 0) {

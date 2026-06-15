@@ -1,5 +1,5 @@
 /*
-UI V5 - ИСПРАВЛЕНА КОМПОНОВКА И ЛОГИКА ПЕРЕХОДОВ (БЕЗ ЗАДВОЕНИЯ)
+UI V5 - АВТОМАТИЗАЦИЯ И СИНХРОНИЗАЦИЯ ПОЛЕЙ
 */
 const DealUI = (() => {
     let root = null;
@@ -22,8 +22,15 @@ const DealUI = (() => {
         if (updateTimeout) clearTimeout(updateTimeout);
         updateTimeout = setTimeout(() => {
             try {
+                // 1. Сначала считаем всю математику
                 DealCalculator.rebuild(deal);
+                
+                // 2. Синхронизируем поля ввода с расчетами (Ипотека, Свои)
+                syncInputsWithCalculations();
+
+                // 3. Рендерим схему
                 DealRenderer.render(deal);
+                
                 if (window.saveDeal) {
                     window.saveDeal();
                 }
@@ -31,6 +38,37 @@ const DealUI = (() => {
                 console.error("Ошибка при обновлении UI: ", error);
             }
         }, 100);
+    }
+
+    // НОВАЯ ФУНКЦИЯ: Заполняет пустые поля ввода данными из расчетов
+    function syncInputsWithCalculations() {
+        if (!deal || !deal.objects) return;
+
+        deal.objects.forEach(object => {
+            if (!object || !object.buyers) return;
+
+            object.buyers.forEach(buyer => {
+                // Если это альтернативный покупатель (имя совпадает с продавцом другой сделки)
+                // и поле ипотеки пустое, но расчетная ипотека есть -> заполняем
+                if (buyer.name && buyer.agent && buyer.agent.commission === 0) {
+                     // Это транзитный покупатель. 
+                     // Мы не перезаписываем ownFunds, так как они управляются через transition.amount
+                     // Но мы можем подсказать ипотеку, если её нет
+                     if (buyer.mortgageFunds === 0) {
+                         // Находим расчетную ипотеку в accounts этого объекта
+                         const mortgageAcc = object.accounts.find(a => a.title.includes("Ипотека"));
+                         if (mortgageAcc && mortgageAcc.amount > 0) {
+                             // Внимание: здесь мы только предлагаем значение, 
+                             // но пользователь может его изменить. 
+                             // Чтобы не сбрасывать ручной ввод, делаем это аккуратно.
+                             // В данной версии мы оставляем право ручного ввода приоритетным,
+                             // но если поле было 0, ставим расчетное.
+                             buyer.mortgageFunds = mortgageAcc.amount;
+                         }
+                     }
+                }
+            });
+        });
     }
 
     function render() {
@@ -150,7 +188,7 @@ const DealUI = (() => {
         header.appendChild(deleteBtn);
         card.appendChild(header);
 
-        // 2. БЛОК ОБЪЕКТА (2 КОЛОНКИ)
+        // 2. БЛОК ОБЪЕКТА
         const objectSection = document.createElement("div");
         objectSection.className = "deal-section object-section";
         
@@ -162,7 +200,6 @@ const DealUI = (() => {
         const objGrid = document.createElement("div");
         objGrid.className = "two-col-grid";
 
-        // Левая колонка: Адрес, Тип, Комнаты, Площадь, ЦЕНА
         const col1 = document.createElement("div");
         col1.className = "grid-col";
         col1.appendChild(compactTextField("Адрес", object.address, v => { object.address = v; refresh(); }));
@@ -173,11 +210,8 @@ const DealUI = (() => {
         roomsAreaRow.appendChild(compactTextField("Комнат", object.rooms, v => { object.rooms = v; refresh(); }));
         roomsAreaRow.appendChild(compactTextField("Площадь (м²)", object.area, v => { object.area = v; refresh(); }));
         col1.appendChild(roomsAreaRow);
-        
-        // ЦЕНА ПЕРЕНЕСЕНА СЮДА, ПОД ХАРАКТЕРИСТИКИ
         col1.appendChild(compactNumberField("Цена (₽)", object.price, v => { object.price = validateNumber(v, 0); refresh(); }));
 
-        // Правая колонка: ТОЛЬКО АВАНСЫ
         const col2 = document.createElement("div");
         col2.className = "grid-col";
         const advancesContainer = document.createElement("div");
@@ -213,7 +247,7 @@ const DealUI = (() => {
         objectSection.appendChild(objGrid);
         card.appendChild(objectSection);
 
-        // 3. БЛОК ПРОДАВЦОВ (ГОРИЗОНТАЛЬНЫЙ СКРОЛЛ)
+        // 3. БЛОК ПРОДАВЦОВ
         const sellerSection = document.createElement("div");
         sellerSection.className = "deal-section seller-section";
         
@@ -244,7 +278,7 @@ const DealUI = (() => {
         sellerSection.appendChild(sellersScrollRow);
         card.appendChild(sellerSection);
 
-        // 4. БЛОК ПОКУПАТЕЛЕЙ (ПОД ПРОДАВЦАМИ, СЕТКА)
+        // 4. БЛОК ПОКУПАТЕЛЕЙ
         const buyerSection = document.createElement("div");
         buyerSection.className = "deal-section buyer-section";
         
@@ -457,19 +491,25 @@ const DealUI = (() => {
         select.onchange = e => {
             if (e.target.value) {
                 transition.toObjectId = Number(e.target.value);
-                // Если сумма еще не задана, ставим netAmount
-                if (!transition.amount || transition.amount === 0) {
-                    transition.amount = seller.netAmount || 0;
-                }
+                
                 const targetObject = deal.objects.find(x => x.id === transition.toObjectId);
                 if (targetObject) {
+                    // УМНЫЙ РАСЧЕТ: если сумма перехода больше цены объекта, ограничиваем её ценой
+                    const maxNeeded = targetObject.price;
+                    let proposedAmount = seller.netAmount || 0;
+                    
+                    if (proposedAmount > maxNeeded && maxNeeded > 0) {
+                        proposedAmount = maxNeeded;
+                    }
+                    
+                    transition.amount = proposedAmount;
+
                     let buyer = targetObject.buyers.find(b => b.name === seller.name);
                     if (!buyer) {
                         buyer = DealModel.createBuyer();
                         buyer.name = seller.name;
                         targetObject.buyers.push(buyer);
                     }
-                    // СТРОГОЕ ПРИСВАИВАНИЕ, БЕЗ СЛОЖЕНИЯ (исключает задвоение)
                     buyer.ownFunds = transition.amount;
                 }
                 refresh();
@@ -497,7 +537,6 @@ const DealUI = (() => {
             if (targetObject && transition.toObjectId) {
                 const buyer = targetObject.buyers.find(b => b.name === seller.name);
                 if (buyer) {
-                    // СТРОГОЕ ПРИСВАИВАНИЕ ПРИ РУЧНОМ ВВОДЕ (исключает задвоение)
                     buyer.ownFunds = transition.amount;
                 }
             }

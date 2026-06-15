@@ -1,5 +1,5 @@
 /*
-FLOW ENGINE V5 - ИСПРАВЛЕНО ЗАДВОЕНИЕ СУММ (СТРОГОЕ ПРИСВАИВАНИЕ)
+FLOW ENGINE V5 - РАСЧЕТ ОСТАТКОВ ДЛЯ ДОПЛАТЫ ПРОДАВЦУ
 */
 const FlowEngine = (() => {
     function build(deal) {
@@ -75,6 +75,10 @@ const FlowEngine = (() => {
             object.sellers.forEach(seller => {
                 const received = Number(seller.netAmount) || 0;
                 const transit = Number(seller.calculatedTransit) || 0;
+                
+                // ВАЖНО: calculatedRemainder теперь показывает разницу
+                // Если received > transit, значит есть остаток на руки (доплата продавцу)
+                // Если received < transit, значит 0 (или долг, но мы берем max 0)
                 seller.calculatedRemainder = Math.max(0, received - transit);
             });
         });
@@ -84,7 +88,6 @@ const FlowEngine = (() => {
         deal.objects.forEach(targetObject => {
             if (!targetObject.incomingTransitions || targetObject.incomingTransitions.length === 0) return;
             
-            // Группируем переходы по имени продавца, чтобы корректно обработать несколько переходов от одного лица
             const transitionsBySeller = {};
             targetObject.incomingTransitions.forEach(t => {
                 if (!transitionsBySeller[t.sellerName]) {
@@ -101,7 +104,6 @@ const FlowEngine = (() => {
                 let existingBuyer = targetObject.buyers.find(b => b.name === sellerName);
                 
                 if (existingBuyer) {
-                    // СТРОГОЕ ПРИСВАИВАНИЕ, А НЕ СЛОЖЕНИЕ (исключает задвоение)
                     existingBuyer.ownFunds = totalAmount;
                     existingBuyer.name = sellerName;
                 } else {
