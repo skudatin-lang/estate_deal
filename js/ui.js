@@ -1,5 +1,5 @@
 /*
-UI V5 - АВТОМАТИЗАЦИЯ И СИНХРОНИЗАЦИЯ ПОЛЕЙ
+UI V5.1 - FIX ALTERNATIVE SELECTION & BUYER SYNC
 */
 const DealUI = (() => {
     let root = null;
@@ -27,7 +27,7 @@ const DealUI = (() => {
                 
                 // 2. Синхронизируем поля ввода с расчетами (Ипотека, Свои)
                 syncInputsWithCalculations();
-
+                
                 // 3. Рендерим схему
                 DealRenderer.render(deal);
                 
@@ -40,32 +40,21 @@ const DealUI = (() => {
         }, 100);
     }
 
-    // НОВАЯ ФУНКЦИЯ: Заполняет пустые поля ввода данными из расчетов
+    // Функция заполнения пустых полей из расчетов
     function syncInputsWithCalculations() {
         if (!deal || !deal.objects) return;
-
         deal.objects.forEach(object => {
             if (!object || !object.buyers) return;
-
             object.buyers.forEach(buyer => {
-                // Если это альтернативный покупатель (имя совпадает с продавцом другой сделки)
-                // и поле ипотеки пустое, но расчетная ипотека есть -> заполняем
+                // Если это альтернативный покупатель (транзитный)
                 if (buyer.name && buyer.agent && buyer.agent.commission === 0) {
-                     // Это транзитный покупатель. 
-                     // Мы не перезаписываем ownFunds, так как они управляются через transition.amount
-                     // Но мы можем подсказать ипотеку, если её нет
-                     if (buyer.mortgageFunds === 0) {
-                         // Находим расчетную ипотеку в accounts этого объекта
-                         const mortgageAcc = object.accounts.find(a => a.title.includes("Ипотека"));
-                         if (mortgageAcc && mortgageAcc.amount > 0) {
-                             // Внимание: здесь мы только предлагаем значение, 
-                             // но пользователь может его изменить. 
-                             // Чтобы не сбрасывать ручной ввод, делаем это аккуратно.
-                             // В данной версии мы оставляем право ручного ввода приоритетным,
-                             // но если поле было 0, ставим расчетное.
-                             buyer.mortgageFunds = mortgageAcc.amount;
-                         }
-                     }
+                    // Подтягиваем ипотеку, если поле пустое, но расчет есть
+                    if (!buyer.mortgageFunds || buyer.mortgageFunds === 0) {
+                        const mortgageAcc = object.accounts.find(a => a.title.includes("Ипотека"));
+                        if (mortgageAcc && mortgageAcc.amount > 0) {
+                            buyer.mortgageFunds = mortgageAcc.amount;
+                        }
+                    }
                 }
             });
         });
@@ -74,18 +63,15 @@ const DealUI = (() => {
     function render() {
         if (!root || !deal) return;
         root.innerHTML = "";
-
         if (!deal.objects || deal.objects.length === 0) {
             root.appendChild(createEmptyMessage());
             return;
         }
-
         deal.objects.forEach((object, index) => {
             if (object) {
                 root.appendChild(objectEditor(object, index));
             }
         });
-        
         createFloatingButtons();
     }
 
@@ -139,6 +125,8 @@ const DealUI = (() => {
                 });
             }
         });
+        // После удаления объекта нужно пересинхронизировать покупателей
+        resyncAllBuyers();
     }
 
     function createEmptyMessage() {
@@ -166,7 +154,7 @@ const DealUI = (() => {
         title.className = "editor-title";
         title.innerHTML = `<span>🏢</span> Сделка №${index + 1}: ${object.address || "новый объект"}`;
         header.appendChild(title);
-        
+
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "delete-object-btn";
         deleteBtn.innerHTML = `<span>🗑</span> Удалить`;
@@ -191,7 +179,6 @@ const DealUI = (() => {
         // 2. БЛОК ОБЪЕКТА
         const objectSection = document.createElement("div");
         objectSection.className = "deal-section object-section";
-        
         const objTitle = document.createElement("div");
         objTitle.className = "section-label";
         objTitle.textContent = "📍 Характеристики объекта";
@@ -214,6 +201,7 @@ const DealUI = (() => {
 
         const col2 = document.createElement("div");
         col2.className = "grid-col";
+        
         const advancesContainer = document.createElement("div");
         advancesContainer.className = "advances-vertical-stack";
         const advLabel = document.createElement("label");
@@ -222,13 +210,11 @@ const DealUI = (() => {
 
         const advancesList = document.createElement("div");
         advancesList.className = "advances-list";
-        
         if (object.advances && object.advances.length > 0) {
             object.advances.forEach((advance, idx) => {
                 advancesList.appendChild(compactAdvanceEditorMini(advance, idx, object));
             });
         }
-
         const addAdvBtn = document.createElement("button");
         addAdvBtn.className = "btn btn-xs btn-dashed";
         addAdvBtn.textContent = "+ Аванс";
@@ -250,7 +236,6 @@ const DealUI = (() => {
         // 3. БЛОК ПРОДАВЦОВ
         const sellerSection = document.createElement("div");
         sellerSection.className = "deal-section seller-section";
-        
         const sellTitle = document.createElement("div");
         sellTitle.className = "section-label";
         sellTitle.textContent = "💼 Продавцы";
@@ -258,13 +243,11 @@ const DealUI = (() => {
 
         const sellersScrollRow = document.createElement("div");
         sellersScrollRow.className = "horizontal-scroll-row";
-
         if (object.sellers && object.sellers.length > 0) {
             object.sellers.forEach((seller, idx) => {
                 sellersScrollRow.appendChild(compactSellerEditor(seller, object, idx));
             });
         }
-
         const addSellBtn = document.createElement("button");
         addSellBtn.className = "btn btn-xs btn-dashed scroll-add-btn";
         addSellBtn.textContent = "+ Продавец";
@@ -281,7 +264,6 @@ const DealUI = (() => {
         // 4. БЛОК ПОКУПАТЕЛЕЙ
         const buyerSection = document.createElement("div");
         buyerSection.className = "deal-section buyer-section";
-        
         const buyTitle = document.createElement("div");
         buyTitle.className = "section-label";
         buyTitle.textContent = "👤 Покупатели";
@@ -289,13 +271,11 @@ const DealUI = (() => {
 
         const buyersGrid = document.createElement("div");
         buyersGrid.className = "buyers-grid";
-
         if (object.buyers && object.buyers.length > 0) {
             object.buyers.forEach((buyer, idx) => {
                 buyersGrid.appendChild(compactBuyerEditor(buyer, idx, object));
             });
         }
-
         const addBuyBtn = document.createElement("button");
         addBuyBtn.className = "btn btn-xs btn-dashed";
         addBuyBtn.textContent = "+ Покупатель";
@@ -315,7 +295,7 @@ const DealUI = (() => {
     function compactAdvanceEditorMini(advance, index, object) {
         const wrap = document.createElement("div");
         wrap.className = "mini-advance-card";
-
+        
         const header = document.createElement("div");
         header.className = "mini-advance-header";
         header.innerHTML = `<span class="sub-title">Аванс ${index + 1}</span>`;
@@ -335,14 +315,14 @@ const DealUI = (() => {
 
         wrap.appendChild(compactTextField("Название", advance.title, v => { advance.title = v; refresh(); }));
         wrap.appendChild(compactNumberField("Сумма", advance.amount, v => { advance.amount = validateNumber(v, 0); refresh(); }));
-
+        
         return wrap;
     }
 
     function compactBuyerEditor(buyer, index, object) {
         const wrap = document.createElement("div");
         wrap.className = "sub-editor buyer-sub-editor";
-
+        
         const header = document.createElement("div");
         header.className = "sub-header";
         header.innerHTML = `<span class="sub-title">Покупатель ${index + 1}</span>`;
@@ -369,7 +349,7 @@ const DealUI = (() => {
         wrap.appendChild(fundsRow);
 
         wrap.appendChild(compactNumberField("Ипотека (₽)", buyer.mortgageFunds, v => { buyer.mortgageFunds = validateNumber(v, 0); refresh(); }));
-
+        
         if (!buyer.agent) buyer.agent = { name: "", commission: 0 };
         wrap.appendChild(compactTextField("Агент", buyer.agent.name, v => { buyer.agent.name = v; refresh(); }));
         wrap.appendChild(compactNumberField("Комиссия (₽)", buyer.agent.commission, v => { buyer.agent.commission = validateNumber(v, 0); refresh(); }));
@@ -380,7 +360,7 @@ const DealUI = (() => {
     function compactSellerEditor(seller, currentObject, index) {
         const wrap = document.createElement("div");
         wrap.className = "sub-editor seller-sub-editor";
-
+        
         const header = document.createElement("div");
         header.className = "sub-header";
         header.innerHTML = `<span class="sub-title">Продавец ${index + 1}</span>`;
@@ -400,11 +380,11 @@ const DealUI = (() => {
 
         wrap.appendChild(compactTextField("ФИО", seller.name, v => { seller.name = v; refresh(); }));
         wrap.appendChild(compactNumberField("Доля (%)", seller.share, v => { seller.share = validateNumber(v, 0, 100); refresh(); }));
-
+        
         if (!seller.agent) seller.agent = { name: "", commission: 0, paymentMode: "seller" };
         wrap.appendChild(compactTextField("Агент", seller.agent.name, v => { seller.agent.name = v; refresh(); }));
         wrap.appendChild(compactNumberField("Комиссия (₽)", seller.agent.commission, v => { seller.agent.commission = validateNumber(v, 0); refresh(); }));
-
+        
         const modeSelect = document.createElement("select");
         modeSelect.className = "input";
         modeSelect.innerHTML = `
@@ -438,7 +418,7 @@ const DealUI = (() => {
         addTransBtn.onclick = () => {
             if (!seller.transitions) seller.transitions = [];
             const newTransition = DealModel.createTransition();
-            // АВТОМАТИЧЕСКИ СТАВИМ СУММУ, РАВНУЮ ЧИСТОМУ ДОХОДУ ПРОДАВЦА
+            // Автоматически ставим сумму, равную чистому доходу продавца
             newTransition.amount = seller.netAmount || 0;
             seller.transitions.push(newTransition);
             render();
@@ -453,7 +433,7 @@ const DealUI = (() => {
         const wrap = document.createElement("div");
         wrap.className = "sub-editor sub-editor-nested";
         wrap.style.marginTop = "6px";
-
+        
         const header = document.createElement("div");
         header.className = "sub-header";
         header.innerHTML = `<span class="sub-title">Переход ${index + 1}</span>`;
@@ -475,7 +455,7 @@ const DealUI = (() => {
         const select = document.createElement("select");
         select.className = "input";
         select.innerHTML = `<option value="">Выберите объект</option>`;
-
+        
         if (deal && deal.objects) {
             deal.objects.forEach(object => {
                 if (String(object.id) !== String(currentObject.id)) {
@@ -491,19 +471,16 @@ const DealUI = (() => {
         select.onchange = e => {
             if (e.target.value) {
                 transition.toObjectId = Number(e.target.value);
-                
                 const targetObject = deal.objects.find(x => x.id === transition.toObjectId);
                 if (targetObject) {
-                    // УМНЫЙ РАСЧЕТ: если сумма перехода больше цены объекта, ограничиваем её ценой
+                    // Умный расчет: если сумма перехода больше цены объекта, ограничиваем её ценой
                     const maxNeeded = targetObject.price;
                     let proposedAmount = seller.netAmount || 0;
-                    
                     if (proposedAmount > maxNeeded && maxNeeded > 0) {
                         proposedAmount = maxNeeded;
                     }
-                    
                     transition.amount = proposedAmount;
-
+                    
                     let buyer = targetObject.buyers.find(b => b.name === seller.name);
                     if (!buyer) {
                         buyer = DealModel.createBuyer();
@@ -524,7 +501,7 @@ const DealUI = (() => {
         selectWrap.appendChild(document.createTextNode("Объект"));
         selectWrap.appendChild(select);
         wrap.appendChild(selectWrap);
-        
+
         const amountInput = document.createElement("input");
         amountInput.type = "number";
         amountInput.className = "input";
@@ -542,7 +519,7 @@ const DealUI = (() => {
             }
             refresh();
         };
-        
+
         const amountWrap = document.createElement("div");
         amountWrap.className = "field";
         amountWrap.appendChild(document.createTextNode("Сумма (₽)"));
@@ -552,13 +529,52 @@ const DealUI = (() => {
         return wrap;
     }
 
+    /**
+     * ИСПРАВЛЕННАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
+     * Раньше она удаляла всех именованных покупателей без комиссии.
+     * Теперь она сохраняет тех, кто привязан к активным переходам.
+     */
     function resyncAllBuyers() {
         if (!deal || !deal.objects) return;
-        deal.objects.forEach(object => {
-            if (object.buyers) {
-                object.buyers = object.buyers.filter(buyer => !buyer.name || (buyer.agent && buyer.agent.commission > 0));
+
+        // 1. Собираем список всех активных транзитных покупателей (по имени и ID объекта)
+        const activeTransitBuyers = new Set();
+        deal.objects.forEach(sourceObj => {
+            if (sourceObj.sellers) {
+                sourceObj.sellers.forEach(seller => {
+                    if (seller.transitions) {
+                        seller.transitions.forEach(t => {
+                            if (t.toObjectId && seller.name) {
+                                // Ключ: ID целевого объекта + Имя продавца
+                                activeTransitBuyers.add(`${t.toObjectId}::${seller.name}`);
+                            }
+                        });
+                    }
+                });
             }
         });
+
+        // 2. Фильтруем покупателей, сохраняя обычных и активных транзитных
+        deal.objects.forEach(object => {
+            if (object.buyers) {
+                object.buyers = object.buyers.filter(buyer => {
+                    // Всегда оставляем анонимных (обычных) покупателей
+                    if (!buyer.name) return true;
+                    
+                    // Оставляем покупателей с комиссией (агенты/особые условия)
+                    if (buyer.agent && buyer.agent.commission > 0) return true;
+
+                    // Оставляем транзитных, если для них есть активный переход
+                    const key = `${object.id}::${buyer.name}`;
+                    if (activeTransitBuyers.has(key)) return true;
+
+                    // Все остальные именованные без комиссии и без перехода - удаляются
+                    return false;
+                });
+            }
+        });
+
+        // 3. Запускаем стандартную синхронизацию из FlowEngine для создания недостающих
         FlowEngine.syncBuyersFromTransitions(deal);
     }
 
